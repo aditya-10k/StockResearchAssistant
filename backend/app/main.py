@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 from app.schemas.query import QueryReq
+from app.api.router import main_router
+from app.core.config import settings
 
-app = FastAPI()
+app = FastAPI(
+    title= settings.APP_NAME,
+    version=settings.APP_VER
+)
 
-@app.get("/hi")
-def working() :
-    return "working"
-
-@app.post("/stock")
-def stock(request : QueryReq):
-    return{
-        "ans" : request.query 
-    }
+app.include_router(main_router)
