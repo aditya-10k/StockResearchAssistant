@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     APP_NAME: str
     APP_VER: str
     DEBUG: bool = False
+    GEMINI_API_KEY : str
 
     model_config = SettingsConfigDict(
         env_file=".env",
