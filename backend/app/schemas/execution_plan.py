@@ -13,8 +13,15 @@ class Company(BaseModel):
     company : str
     ticker : str
 
+class ServiceType(str , Enum) :
+    MARKET = "market_data"
+    NEWS = "news_sentiment"
+    KNOWLEDGE = "knowledge_base"
+    PORTFOLIO = "portfolio"   
+
 class ExecutionPlan(BaseModel):
     intent : Intent
     entities : List[Company]
-    required_services : List[str]
+    required_services : List[ServiceType]
+
 
