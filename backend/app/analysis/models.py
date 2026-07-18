@@ -3,6 +3,8 @@ from pydantic import BaseModel
 
 class AnalysisResult(BaseModel):
 
+    direct_answer: str
+
     summary: str
 
     investment_thesis: str

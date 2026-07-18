@@ -7,6 +7,7 @@ from app.ai.llm.service import LLMService
 
 from app.schemas.execution_plan import ExecutionPlan
 from app.services.market.models import CompanySnapshot
+from typing import Any
 
 
 class AnalysisService:
@@ -21,12 +22,24 @@ class AnalysisService:
         execution_plan: ExecutionPlan,
         market_data: list[CompanySnapshot],
         news_data : dict[str , list[dict[str,any]]],
+        financials_data: dict[str, Any],
+        price_history_data: dict[str, Any],
+        calendar_data: dict[str, Any],
+        holders_data: dict[str, Any],
+        recommendations_data: dict[str, Any],
+        earnings_data: dict[str, Any],
     ) -> AnalysisResult:
 
         prompt = build_analysis_prompt(
             query,
             market_data,
-            news_data
+            news_data,
+            financials_data,
+            price_history_data,
+            calendar_data,
+            holders_data,
+            recommendations_data,
+            earnings_data,
         )
 
         request = LLMRequest(
