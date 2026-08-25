@@ -20,10 +20,14 @@ class GroqLLM(BaseLLM):
         self.client = Groq(api_key=settings.GROQ_API_KEY)
 
     def generate(self, request: LLMRequest):
+        system_prompt = request.system_prompt
+        if request.response_model and "json" not in system_prompt.lower():
+            system_prompt += "\n\nYou MUST return your response as a valid JSON object."
+
         request_options = {
             "model": settings.GROQ_MODEL,
             "messages": [
-                {"role": "system", "content": request.system_prompt},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": request.user_prompt},
             ],
             "temperature": request.temperature,
