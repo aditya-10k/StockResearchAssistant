@@ -18,6 +18,7 @@ def query_stream(request: QueryReq):
     def event_generator():
         inputs = {
             "query": request.query,
+            "chat_history": request.chat_history,
             "execution_plan": None,
         }
 
@@ -30,6 +31,8 @@ def query_stream(request: QueryReq):
 
             yield "event: done\ndata: {}\n\n"
         except Exception as error:
+            import traceback
+            traceback.print_exc()
             payload = json.dumps({"message": str(error)})
             yield f"event: error\ndata: {payload}\n\n"
 
