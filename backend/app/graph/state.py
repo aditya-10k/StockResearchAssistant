@@ -12,6 +12,7 @@ from app.ai.guardrails.models import GuardRailResult
 
 class GraphState(TypedDict):
     query : str
+    chat_history: list[dict] | None
     guardrail: GuardRailResult | None
     execution_plan : ExecutionPlan | None
     market_data : list[CompanySnapshot] | None
@@ -22,4 +23,6 @@ class GraphState(TypedDict):
     holders_data: dict[str, HoldersSnapshot] | None
     recommendations_data: dict[str, RecommendationsSnapshot] | None
     earnings_data: dict[str, EarningsSnapshot] | None
+    rag_documents: list[dict] | None
     analysis : AnalysisResult | None
+    verification_result: str | None

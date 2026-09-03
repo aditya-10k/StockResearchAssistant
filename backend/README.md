@@ -1,63 +1,35 @@
-# Stock Research Assistant
+---
+title: Stock Research Assistant Backend
+emoji: 📈
+colorFrom: gray
+colorTo: blue
+sdk: gradio
+app_file: space.py
+---
 
-A FastAPI and LangGraph backend that researches stocks using `yfinance` and
-returns a structured analysis.
+# Stock Research Assistant - Backend API
 
-## Setup
+FastAPI agentic equity research pipeline powered by LangGraph, Groq (`qwen/qwen3.8-27b`), and yfinance.
 
-Add your settings to `.env`:
+## Hugging Face Spaces Setup
 
-```env
-APP_NAME=Stock Research Assistant
-APP_VER=1.0.0
-GEMINI_API_KEY=your_key
-LLM_PROVIDER=gemini
+### 1. Repository Contents
+Push the contents of the `backend/` folder to your Hugging Face Space:
+- `space.py`
+- `requirements.txt`
+- `app/`
+
+### 2. Environment Variables / Secrets
+Go to your Space **Settings > Variables and Secrets** and add:
+- `GROQ_API_KEY`: Your Groq API key (or `GEMINI_API_KEY` for Google Gemini)
+- `LLM_PROVIDER`: `groq` (or `gemini`)
+- `GROQ_MODEL`: `qwen/qwen3.8-27b`
+
+### 3. Connecting Frontend
+Your Space URL will be:
+`https://<your-hf-username>-<space-name>.hf.space`
+
+Build your Flutter frontend pointing to this backend:
+```bash
+flutter build web --dart-define=BACKEND_URL=https://<your-hf-username>-<space-name>.hf.space
 ```
-
-Start the API:
-
-```powershell
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
-```
-
-## API
-
-- `GET /health` — health check
-- `POST /query` — returns the complete result after the graph finishes
-- `POST /query/stream` — streams each completed graph node as SSE
-
-Example request:
-
-```json
-{
-  "query": "I have 1000 Rs. Should I choose Paytm or RVNL?"
-}
-```
-
-## Graph flow
-
-```mermaid
-flowchart LR
-    start([Start]) --> guardrail[Guardrail]
-    guardrail -->|Allowed| planner[Planner]
-    guardrail -->|Blocked| blocked[Blocked]
-    planner --> executor[Executor]
-    executor --> analysis[Analysis]
-    analysis --> endNode([End])
-    blocked --> endNode
-
-    executor -. selected services .-> services["Market · News · Financials · Price History · Calendar · Holders · Recommendations · Earnings"]
-```
-
-The planner selects the services needed for a query. The executor retrieves
-their data from `yfinance`, and the analysis node creates the final response.
-
-## SSE events
-
-`POST /query/stream` sends events as nodes finish:
-
-```text
-guardrail → planner → executor → analysis → done
-```
-
-The executor event contains the selected service data.
