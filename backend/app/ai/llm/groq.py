@@ -31,6 +31,7 @@ class GroqLLM(BaseLLM):
                 {"role": "user", "content": request.user_prompt},
             ],
             "temperature": request.temperature,
+            "max_tokens": 800 if "qwen" in settings.GROQ_MODEL.lower() else 2048,
         }
 
         if request.response_model:
