@@ -1,6 +1,6 @@
 class AppConfig {
   static const String backendUrl = String.fromEnvironment(
     'BACKEND_URL',
-    defaultValue: 'http://localhost:8000',
+    defaultValue: 'https://stockresearchassistant-6fcv.onrender.com',
   );
 }
