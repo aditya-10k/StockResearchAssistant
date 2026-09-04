@@ -70,7 +70,19 @@ class ResearchResultView extends StatelessWidget {
           const SizedBox(height: 14),
         ],
 
-        // 2. AI Analysis & Verdict (Rendered below the stock cards)
+        // 2. Quarterly Earnings Chart (if present)
+        if (result.earningsData != null && result.earningsData!.isNotEmpty) ...[
+          EarningsBarChart(earningsData: result.earningsData),
+          const SizedBox(height: 12),
+        ],
+
+        // 3. Recent News Headlines (if present)
+        if (result.newsData != null && result.newsData!.isNotEmpty) ...[
+          NewsCard(newsData: result.newsData),
+          const SizedBox(height: 12),
+        ],
+
+        // 4. AI Analysis & Final Verdict (Rendered at the ABSOLUTE END)
         if (result.analysis != null) ...[
           AnalysisCard(
             analysis: result.analysis!,
@@ -100,18 +112,6 @@ class ResearchResultView extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-        ],
-
-        // 3. Quarterly Earnings Chart (if present)
-        if (result.earningsData != null && result.earningsData!.isNotEmpty) ...[
-          EarningsBarChart(earningsData: result.earningsData),
-          const SizedBox(height: 12),
-        ],
-
-        // 4. Recent News Headlines (if present)
-        if (result.newsData != null && result.newsData!.isNotEmpty) ...[
-          NewsCard(newsData: result.newsData),
           const SizedBox(height: 12),
         ],
       ],

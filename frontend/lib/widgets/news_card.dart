@@ -34,8 +34,10 @@ class NewsCard extends StatelessWidget {
           const Text('RECENT NEWS', style: TextStyle(fontSize: 10, color: AppColors.textSecondary, letterSpacing: 1.2)),
           const SizedBox(height: 12),
           ...allNews.take(6).map((item) {
-            final title = item['title'] ?? item['headline'] ?? 'No title';
-            final source = item['publisher'] ?? item['source'] ?? '';
+            final content = item['content'] is Map ? Map<String, dynamic>.from(item['content']) : <String, dynamic>{};
+            final title = content['title'] ?? content['headline'] ?? item['title'] ?? item['headline'] ?? 'Market Update';
+            final provider = content['provider'] is Map ? content['provider'] : null;
+            final source = (provider != null ? provider['displayName'] : null) ?? item['publisher'] ?? item['source'] ?? '';
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
