@@ -31,23 +31,42 @@ def executor_node(state: GraphState):
     recommendations_results = {}
     earnings_results = {}
 
-    for company in plan.entities:
+    entities = list(plan.entities) if (plan and plan.entities) else []
+    
+    # Fallback: if planner failed to extract entities, extract tickers from query text
+    if not entities:
+        query_text = state.get("query", "").upper()
+        import re
+        tokens = re.findall(r"\b[A-Z]{1,6}(?:\.[A-Z]{2})?\b", query_text)
+        stopwords = {
+            "AI", "PE", "EPS", "CEO", "USA", "USD", "INR", "FOR", "AND", "THE", 
+            "HOW", "WHY", "WHAT", "IS", "CAN", "ARE", "BUY", "SELL", "HOLD", 
+            "STOCK", "STOCKS", "PRICE", "NEWS", "TELL", "ME", "ABOUT", "ANALYZE"
+        }
+        for tok in tokens:
+            if tok not in stopwords:
+                from app.schemas.execution_plan import Company
+                entities.append(Company(company=tok, ticker=tok))
+                break
+
+    for company in entities:
         ticker = company.ticker
 
-        # 1. Market Data (Always attempt snapshot)
-        if ServiceType.MARKET in required_services:
-            try:
-                snapshots.append(market_service.get_company_snapshot(ticker))
-            except Exception as e:
-                print(f"[executor] Market snapshot error for {ticker}: {e}")
+        # 1. Market Data: ALWAYS fetch snapshot for every analyzed stock
+        try:
+            snapshot = market_service.get_company_snapshot(ticker)
+            if snapshot:
+                snapshots.append(snapshot)
+        except Exception as e:
+            print(f"[executor] Market snapshot error for {ticker}: {e}")
 
-        # 2. News Data
-        if ServiceType.NEWS in required_services:
-            try:
-                news_results[ticker] = news_service.get_company_news(ticker)
-            except Exception as e:
-                print(f"[executor] News error for {ticker}: {e}")
-                news_results[ticker] = []
+        # 2. News Data: ALWAYS fetch recent news for every analyzed stock
+        try:
+            news_items = news_service.get_company_news(ticker)
+            news_results[ticker] = news_items or []
+        except Exception as e:
+            print(f"[executor] News error for {ticker}: {e}")
+            news_results[ticker] = []
 
         # 3. Financials
         if ServiceType.FINANCIALS in required_services:

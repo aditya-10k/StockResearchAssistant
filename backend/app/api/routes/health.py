@@ -1,9 +1,12 @@
+import time
 from fastapi import APIRouter
 
 router = APIRouter()
 
 @router.get("/health")
-def healthcheck() :
+def healthcheck():
     return {
-        "status" :"all good"
+        "status": "ok",
+        "service": "Stock Research Assistant API",
+        "timestamp": int(time.time()),
     }

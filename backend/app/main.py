@@ -32,5 +32,11 @@ app.add_middleware(
 app.include_router(main_router)
 
 @app.get("/")
+@app.head("/")
 def root():
     return {"status": "ok", "app": settings.APP_NAME, "version": settings.APP_VER}
+
+@app.get("/health")
+@app.head("/health")
+def health():
+    return {"status": "ok", "service": "Stock Research Assistant API"}
