@@ -12,15 +12,115 @@ class SendMessageEvent extends ChatEvent {
   SendMessageEvent(this.query);
 }
 
+class LoadSessionEvent extends ChatEvent {
+  final Map<String, dynamic> sessionData;
+  final bool isShared;
+  LoadSessionEvent(this.sessionData, {this.isShared = false});
+}
+
+class NewSessionEvent extends ChatEvent {}
+
 class ChatState {
   final List<ChatMessage> messages;
   final bool isLoading;
-  ChatState({required this.messages, this.isLoading = false});
+  final String? currentSessionId;
+  final String? sessionTitle;
+  final bool isSharedView;
+
+  ChatState({
+    required this.messages,
+    this.isLoading = false,
+    this.currentSessionId,
+    this.sessionTitle,
+    this.isSharedView = false,
+  });
+
+  ChatState copyWith({
+    List<ChatMessage>? messages,
+    bool? isLoading,
+    String? currentSessionId,
+    String? sessionTitle,
+    bool? isSharedView,
+  }) {
+    return ChatState(
+      messages: messages ?? this.messages,
+      isLoading: isLoading ?? this.isLoading,
+      currentSessionId: currentSessionId ?? this.currentSessionId,
+      sessionTitle: sessionTitle ?? this.sessionTitle,
+      isSharedView: isSharedView ?? this.isSharedView,
+    );
+  }
 }
 
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ChatBloc() : super(ChatState(messages: [])) {
     on<SendMessageEvent>(_onSend);
+    on<LoadSessionEvent>(_onLoadSession);
+    on<NewSessionEvent>(_onNewSession);
+  }
+
+  void _onNewSession(NewSessionEvent event, Emitter<ChatState> emit) {
+    emit(ChatState(
+      messages: [],
+      isLoading: false,
+      currentSessionId: null,
+      sessionTitle: null,
+      isSharedView: false,
+    ));
+  }
+
+  void _onLoadSession(LoadSessionEvent event, Emitter<ChatState> emit) {
+    final session = event.sessionData;
+    final sessionId = session['id']?.toString();
+    final title = session['title']?.toString();
+    final rawMsgs = session['messages'];
+
+    List<ChatMessage> parsedMsgs = [];
+    if (rawMsgs is List) {
+      for (var m in rawMsgs) {
+        if (m is Map) {
+          final isUser = m['role'] == 'user';
+          final content = m['content']?.toString() ?? '';
+          final payload = m['structured_payload'];
+
+          ResearchResult? res;
+          bool isStructured = false;
+
+          if (!isUser && payload is Map) {
+            final p = Map<String, dynamic>.from(payload);
+            res = ResearchResult(
+              marketData: p['market_data'] is List
+                  ? List<Map<String, dynamic>>.from(
+                      (p['market_data'] as List).map((x) => Map<String, dynamic>.from(x as Map))
+                    )
+                  : [],
+              newsData: p['news_data'] is Map ? Map<String, dynamic>.from(p['news_data'] as Map) : null,
+              financialsData: p['financials_data'] is Map ? Map<String, dynamic>.from(p['financials_data'] as Map) : null,
+              analysis: p['analysis'] is Map ? Map<String, dynamic>.from(p['analysis'] as Map) : null,
+              verificationResult: p['verification_result']?.toString(),
+            );
+            isStructured = true;
+          }
+
+          parsedMsgs.add(ChatMessage(
+            id: m['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
+            text: content,
+            isUser: isUser,
+            result: res,
+            isStructured: isStructured,
+            isStreaming: false,
+          ));
+        }
+      }
+    }
+
+    emit(ChatState(
+      messages: parsedMsgs,
+      isLoading: false,
+      currentSessionId: sessionId,
+      sessionTitle: title,
+      isSharedView: event.isShared,
+    ));
   }
 
   Future<void> _onSend(SendMessageEvent event, Emitter<ChatState> emit) async {
@@ -41,7 +141,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
 
     List<ChatMessage> msgs = [...state.messages, userMsg, botMsg];
-    emit(ChatState(messages: msgs, isLoading: true));
+    emit(state.copyWith(messages: msgs, isLoading: true));
+
+    String? activeSessionId = state.currentSessionId;
 
     void emitProgress(ResearchResult result, String status, String step, {bool isStructured = false}) {
       msgs = msgs.map((m) => m.id == botId
@@ -53,7 +155,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               isStreaming: true,
             )
           : m).toList();
-      emit(ChatState(messages: msgs, isLoading: true));
+      emit(state.copyWith(
+        messages: msgs,
+        isLoading: true,
+        currentSessionId: activeSessionId,
+      ));
     }
 
     void finish(ResearchResult result) {
@@ -66,7 +172,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               isStreaming: false,
             )
           : m).toList();
-      emit(ChatState(messages: msgs, isLoading: false));
+      emit(state.copyWith(
+        messages: msgs,
+        isLoading: false,
+        currentSessionId: activeSessionId,
+        sessionTitle: state.sessionTitle ?? (event.query.length > 35 ? event.query.substring(0, 35) + '...' : event.query),
+        isSharedView: false,
+      ));
     }
 
     final history = state.messages
@@ -79,7 +191,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     try {
       final req = http.Request('POST', Uri.parse('${AppConfig.backendUrl}/query/stream'));
       req.headers['Content-Type'] = 'application/json';
-      req.body = jsonEncode({'query': event.query, 'chat_history': history});
+      req.body = jsonEncode({
+        'query': event.query,
+        'chat_history': history,
+        'session_id': state.currentSessionId,
+      });
 
       final res = await http.Client().send(req);
       if (res.statusCode != 200) {
@@ -112,6 +228,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               final d = jsonDecode(raw);
               if (d is Map<String, dynamic>) {
                 bool hasUpdate = false;
+
+                if (d.containsKey('session_id')) {
+                  activeSessionId = d['session_id'].toString();
+                }
 
                 // 1. Market Data & Fundamentals (Extract whenever available)
                 if (d.containsKey('market_data') && d['market_data'] is List && (d['market_data'] as List).isNotEmpty) {

@@ -8,7 +8,8 @@ import '../widgets/app_theme.dart';
 
 class ResearchResultView extends StatelessWidget {
   final ResearchResult result;
-  const ResearchResultView({super.key, required this.result});
+  final VoidCallback? onShare;
+  const ResearchResultView({super.key, required this.result, this.onShare});
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +90,25 @@ class ResearchResultView extends StatelessWidget {
             verificationResult: result.verificationResult,
           ),
           const SizedBox(height: 12),
+          if (onShare != null) ...[
+            Center(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.cyan, width: 0.8),
+                  backgroundColor: AppColors.surface,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                ),
+                onPressed: onShare,
+                icon: const Icon(Icons.share_outlined, size: 14, color: AppColors.cyan),
+                label: const Text(
+                  'SHARE THIS REPORT',
+                  style: TextStyle(fontSize: 10, color: AppColors.cyan, letterSpacing: 1.2, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
         ] else if (stocks.isNotEmpty) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
