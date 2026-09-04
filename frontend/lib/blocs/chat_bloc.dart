@@ -86,20 +86,31 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           ResearchResult? res;
           bool isStructured = false;
 
-          if (!isUser && payload is Map) {
-            final p = Map<String, dynamic>.from(payload);
-            res = ResearchResult(
-              marketData: p['market_data'] is List
-                  ? List<Map<String, dynamic>>.from(
-                      (p['market_data'] as List).map((x) => Map<String, dynamic>.from(x as Map))
-                    )
-                  : [],
-              newsData: p['news_data'] is Map ? Map<String, dynamic>.from(p['news_data'] as Map) : null,
-              financialsData: p['financials_data'] is Map ? Map<String, dynamic>.from(p['financials_data'] as Map) : null,
-              analysis: p['analysis'] is Map ? Map<String, dynamic>.from(p['analysis'] as Map) : null,
-              verificationResult: p['verification_result']?.toString(),
-            );
-            isStructured = true;
+          if (!isUser && payload != null) {
+            Map<String, dynamic>? p;
+            if (payload is Map) {
+              p = Map<String, dynamic>.from(payload);
+            } else if (payload is String && payload.isNotEmpty) {
+              try {
+                final dec = jsonDecode(payload);
+                if (dec is Map) p = Map<String, dynamic>.from(dec);
+              } catch (_) {}
+            }
+
+            if (p != null) {
+              res = ResearchResult(
+                marketData: p['market_data'] is List
+                    ? List<Map<String, dynamic>>.from(
+                        (p['market_data'] as List).map((x) => Map<String, dynamic>.from(x as Map))
+                      )
+                    : [],
+                newsData: p['news_data'] is Map ? Map<String, dynamic>.from(p['news_data'] as Map) : null,
+                financialsData: p['financials_data'] is Map ? Map<String, dynamic>.from(p['financials_data'] as Map) : null,
+                analysis: p['analysis'] is Map ? Map<String, dynamic>.from(p['analysis'] as Map) : null,
+                verificationResult: p['verification_result']?.toString(),
+              );
+              isStructured = true;
+            }
           }
 
           parsedMsgs.add(ChatMessage(

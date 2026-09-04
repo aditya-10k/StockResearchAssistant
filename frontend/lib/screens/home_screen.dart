@@ -24,6 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Map<String, dynamic>> _recentSessions = [];
   bool _isLoadingSessions = false;
+  bool _isLoadingSharedSession = false;
+  String? _loadingSharedId;
 
   @override
   void initState() {
@@ -44,12 +46,49 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final sharedId = Uri.base.queryParameters['session'];
       if (sharedId != null && sharedId.isNotEmpty) {
-        final data = await ApiService.getSharedChat(sharedId);
-        if (data != null && mounted) {
-          context.read<ChatBloc>().add(LoadSessionEvent(data, isShared: true));
+        setState(() {
+          _isLoadingSharedSession = true;
+          _loadingSharedId = sharedId;
+        });
+
+        // Attempt fetch, retry once after 3s if backend is still waking up
+        var data = await ApiService.getSharedChat(sharedId);
+        if (data == null) {
+          await Future.delayed(const Duration(seconds: 3));
+          data = await ApiService.getSharedChat(sharedId);
+        }
+
+        if (mounted) {
+          setState(() {
+            _isLoadingSharedSession = false;
+          });
+
+          if (data != null) {
+            context.read<ChatBloc>().add(LoadSessionEvent(data, isShared: true));
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.surface,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                  side: const BorderSide(color: AppColors.amber, width: 0.8),
+                ),
+                content: Text(
+                  'Shared report "$sharedId" was not found or has expired. You can start a new research query below.',
+                  style: const TextStyle(fontSize: 12, color: AppColors.amber, fontFamily: 'monospace'),
+                ),
+                duration: const Duration(seconds: 6),
+              ),
+            );
+          }
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoadingSharedSession = false);
+      }
+    }
   }
 
   Future<void> _loadRecentSessions() async {
@@ -227,6 +266,35 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           body: Column(
             children: [
+              if (_isLoadingSharedSession)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.cyan.withOpacity(0.08),
+                    border: const Border(bottom: BorderSide(color: AppColors.cyan, width: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cyan),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'FETCHING SHARED RESEARCH REPORT (${_loadingSharedId ?? ''})...',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.cyan,
+                          letterSpacing: 1.2,
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (chatState.isSharedView)
                 Container(
                   width: double.infinity,
