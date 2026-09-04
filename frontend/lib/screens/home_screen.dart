@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../blocs/chat_bloc.dart';
 import '../screens/research_result_view.dart';
+import '../services/api_service.dart';
 import '../widgets/progress_status_bar.dart';
 import '../widgets/app_theme.dart';
 
@@ -15,6 +17,28 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  bool _isBackendOnline = false;
+  bool _isCheckingHealth = true;
+  Timer? _healthTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // 1. Immediately ping healthcheck on site open to wake up Render container
+    _pingHealth();
+    // 2. Keep pinging every 25 seconds to keep the free-tier container warm while user is browsing
+    _healthTimer = Timer.periodic(const Duration(seconds: 25), (_) => _pingHealth());
+  }
+
+  Future<void> _pingHealth() async {
+    final online = await ApiService.checkHealth();
+    if (mounted) {
+      setState(() {
+        _isBackendOnline = online;
+        _isCheckingHealth = false;
+      });
+    }
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -38,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _healthTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -56,9 +81,48 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         title: Row(
           children: [
-            Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle)),
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: _isBackendOnline ? AppColors.green : AppColors.amber,
+                shape: BoxShape.circle,
+              ),
+            ),
             const SizedBox(width: 8),
-            const Text('RESEARCH TERMINAL', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 2.0, fontFamily: 'monospace')),
+            const Text(
+              'RESEARCH TERMINAL',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 2.0,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _isBackendOnline
+                    ? AppColors.green.withOpacity(0.12)
+                    : AppColors.amber.withOpacity(0.12),
+                border: Border.all(
+                  color: _isBackendOnline ? AppColors.green : AppColors.amber,
+                  width: 0.5,
+                ),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Text(
+                _isBackendOnline ? 'LIVE' : (_isCheckingHealth ? 'PINGING...' : 'WAKING UP SERVER...'),
+                style: TextStyle(
+                  fontSize: 9,
+                  color: _isBackendOnline ? AppColors.green : AppColors.amber,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -70,6 +134,31 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Column(
         children: [
+          if (!_isBackendOnline)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.amber.withOpacity(0.08),
+                border: const Border(bottom: BorderSide(color: AppColors.amber, width: 0.5)),
+              ),
+              child: Row(
+                children: const [
+                  SizedBox(
+                    width: 10,
+                    height: 10,
+                    child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.amber),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Backend is waking up from idle sleep on free Render tier (~30s). Initial query may take a moment.',
+                      style: TextStyle(fontSize: 11, color: AppColors.amber),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: BlocConsumer<ChatBloc, ChatState>(
               listener: (ctx, state) => _scrollToBottom(),

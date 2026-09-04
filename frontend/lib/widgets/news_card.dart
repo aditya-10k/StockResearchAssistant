@@ -22,11 +22,13 @@ class NewsCard extends StatelessWidget {
 
     List<Map<String, dynamic>> allNews = [];
     for (var entry in newsData!.entries) {
-      final newsList = entry.value;
-      if (newsList is List) {
-        for (var item in newsList.take(3)) {
+      final val = entry.value;
+      if (val is List) {
+        for (var item in val) {
           if (item is Map) allNews.add(Map<String, dynamic>.from(item));
         }
+      } else if (val is Map) {
+        allNews.add(Map<String, dynamic>.from(val));
       }
     }
 
@@ -50,15 +52,20 @@ class NewsCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          ...allNews.take(6).map((item) {
+          ...allNews.take(8).map((item) {
             final content = item['content'] is Map ? Map<String, dynamic>.from(item['content']) : <String, dynamic>{};
             final title = content['title'] ?? content['headline'] ?? item['title'] ?? item['headline'] ?? 'Market Update';
             final provider = content['provider'] is Map ? content['provider'] : null;
             final source = (provider != null ? provider['displayName'] : null) ?? item['publisher'] ?? item['source'] ?? '';
-            final url = (content['canonicalUrl'] is Map ? content['canonicalUrl']['url'] : null) ??
+            var url = (content['canonicalUrl'] is Map ? content['canonicalUrl']['url'] : null) ??
                 (content['clickThroughUrl'] is Map ? content['clickThroughUrl']['url'] : null) ??
                 item['link'] ??
                 item['url'];
+
+            // Fallback search link if direct article URL is missing
+            if (url == null || url.toString().isEmpty) {
+              url = 'https://news.google.com/search?q=${Uri.encodeComponent(title.toString())}';
+            }
 
             final hasUrl = url != null && url.toString().isNotEmpty;
 

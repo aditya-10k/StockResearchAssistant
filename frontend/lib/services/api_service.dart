@@ -3,7 +3,18 @@ import 'package:http/http.dart' as http;
 import '../config.dart';
 
 class ApiService {
-  final String baseUrl = AppConfig.backendUrl;
+  static final String baseUrl = AppConfig.backendUrl;
+
+  static Future<bool> checkHealth() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/health'),
+      ).timeout(const Duration(seconds: 40));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 
   Stream<String> queryStream(String query) async* {
     final request = http.Request('POST', Uri.parse('${baseUrl}/query/stream'));

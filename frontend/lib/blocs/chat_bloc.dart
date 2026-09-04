@@ -111,36 +111,61 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             try {
               final d = jsonDecode(raw);
               if (d is Map<String, dynamic>) {
-                if (currentEvent == 'executor') {
+                bool hasUpdate = false;
+
+                // 1. Market Data & Fundamentals (Extract whenever available)
+                if (d.containsKey('market_data') && d['market_data'] is List && (d['market_data'] as List).isNotEmpty) {
                   accumulator = accumulator.copyWith(
-                    marketData: d['market_data'] != null && d['market_data'] is List
-                        ? List<Map<String, dynamic>>.from(
-                            (d['market_data'] as List).map((x) => Map<String, dynamic>.from(x as Map))
-                          )
-                        : accumulator.marketData,
-                    newsData: d['news_data'] != null && d['news_data'] is Map
-                        ? Map<String, dynamic>.from(d['news_data'] as Map)
-                        : accumulator.newsData,
-                    financialsData: d['financials_data'] != null && d['financials_data'] is Map
-                        ? Map<String, dynamic>.from(d['financials_data'] as Map)
-                        : accumulator.financialsData,
-                    recommendationsData: d['recommendations_data'] != null && d['recommendations_data'] is Map
-                        ? Map<String, dynamic>.from(d['recommendations_data'] as Map)
-                        : accumulator.recommendationsData,
-                    earningsData: d['earnings_data'] != null && d['earnings_data'] is Map
-                        ? Map<String, dynamic>.from(d['earnings_data'] as Map)
-                        : accumulator.earningsData,
+                    marketData: List<Map<String, dynamic>>.from(
+                      (d['market_data'] as List).map((x) => Map<String, dynamic>.from(x as Map))
+                    ),
                   );
-                  // PROGRESSIVE UPDATE: Market data arrived! Render stock cards immediately!
-                  emitProgress(accumulator, 'Market data loaded! Synthesizing AI research & verdict...', 'analysis', isStructured: true);
-                } else if (currentEvent == 'analysis' && d['analysis'] != null && d['analysis'] is Map) {
+                  hasUpdate = true;
+                }
+
+                // 2. News Data (Extract whenever available)
+                if (d.containsKey('news_data') && d['news_data'] is Map && (d['news_data'] as Map).isNotEmpty) {
+                  accumulator = accumulator.copyWith(
+                    newsData: Map<String, dynamic>.from(d['news_data'] as Map),
+                  );
+                  hasUpdate = true;
+                }
+
+                // 3. Other services
+                if (d.containsKey('financials_data') && d['financials_data'] is Map) {
+                  accumulator = accumulator.copyWith(
+                    financialsData: Map<String, dynamic>.from(d['financials_data'] as Map),
+                  );
+                }
+                if (d.containsKey('recommendations_data') && d['recommendations_data'] is Map) {
+                  accumulator = accumulator.copyWith(
+                    recommendationsData: Map<String, dynamic>.from(d['recommendations_data'] as Map),
+                  );
+                }
+                if (d.containsKey('earnings_data') && d['earnings_data'] is Map) {
+                  accumulator = accumulator.copyWith(
+                    earningsData: Map<String, dynamic>.from(d['earnings_data'] as Map),
+                  );
+                }
+
+                if (hasUpdate && accumulator.marketData.isNotEmpty) {
+                  emitProgress(accumulator, 'Market data & news loaded! Synthesizing AI research & verdict...', 'analysis', isStructured: true);
+                }
+
+                // 4. AI Analysis
+                if (d.containsKey('analysis') && d['analysis'] != null && d['analysis'] is Map) {
                   accumulator = accumulator.copyWith(analysis: Map<String, dynamic>.from(d['analysis'] as Map));
-                  // PROGRESSIVE UPDATE: AI Analysis arrived! Render verdict immediately!
                   emitProgress(accumulator, 'AI Verdict generated! Grounding and verifying claims...', 'verification', isStructured: true);
-                } else if (currentEvent == 'verification' && d['verification_result'] != null) {
+                }
+
+                // 5. Grounding & Verification
+                if (d.containsKey('verification_result') && d['verification_result'] != null) {
                   accumulator = accumulator.copyWith(verificationResult: d['verification_result'].toString());
                   emitProgress(accumulator, 'Grounding complete.', 'done', isStructured: true);
-                } else if (currentEvent == 'blocked') {
+                }
+
+                // 6. Blocked / Errors
+                if (currentEvent == 'blocked' || (d.containsKey('guardrail') && d['guardrail'] is Map && d['guardrail']['is_safe'] == false)) {
                   final blockedReason = d['analysis']?['summary'] ?? d['guardrail']?['reason'] ?? 'Request was blocked.';
                   accumulator = accumulator.copyWith(blockedMessage: blockedReason.toString());
                   finish(accumulator);
@@ -152,7 +177,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
                 }
               }
             } catch (e) {
-              // Ignore partial parse
+              // Partial parse safe ignore
             }
           }
           if (currentEvent == 'done') {
