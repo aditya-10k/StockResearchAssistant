@@ -5,9 +5,16 @@ analysis_service = AnalysisService()
 
 def analysis_node (state: GraphState) :
     query = state['query']
+
+    # Inject RAG reference documents if retrieved
+    rag_docs = state.get('rag_documents') or []
+    if rag_docs:
+        rag_str = "\n\n".join([f"[{d.get('title', 'Reference Document')}]: {d.get('content', '')}" for d in rag_docs])
+        query = f"Reference Grounding Documents:\n{rag_str}\n\n{query}"
+
     if state.get('chat_history'):
         history_str = "\n".join([f"{msg.get('role', 'user')}: {msg.get('content', '')}" for msg in state['chat_history']])
-        query = f"Previous Conversation Context:\n{history_str}\n\nCurrent Query:\n{query}"
+        query = f"Previous Conversation Context:\n{history_str}\n\n{query}"
 
     analysis = analysis_service.analyze(
         query= query,

@@ -5,12 +5,18 @@ from app.core.config import settings
 from app.db.database import engine, Base
 from sqlalchemy import text
 
-# Create tables (graceful for cloud deployment without local Postgres)
+# Create tables & seed RAG documents (graceful fallback if Postgres is starting/offline)
 try:
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         conn.commit()
     Base.metadata.create_all(bind=engine)
+    
+    # Auto-seed reference research documents if empty
+    from app.db.database import SessionLocal
+    from app.ai.rag.service import RAGService
+    with SessionLocal() as seed_db:
+        RAGService(seed_db).seed_initial_documents()
 except Exception as e:
     print(f"Warning: Database connection skipped or failed: {e}")
 

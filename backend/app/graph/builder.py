@@ -8,12 +8,14 @@ from app.graph.nodes.blocked import blocked_node
 from app.graph.routers import guardrail_router
 
 from app.graph.nodes.verification import verification_node
+from app.graph.nodes.rag import rag_node
 
 builder = StateGraph(GraphState)
 
 builder.add_node("guardrail", guardrail_node)
 builder.add_node("planner" ,planner)
 builder.add_node("executor" ,executor_node)
+builder.add_node("rag", rag_node)
 builder.add_node("analysis", analysis_node)
 builder.add_node("verification", verification_node)
 builder.add_node("blocked", blocked_node)
@@ -26,7 +28,8 @@ builder.add_conditional_edges("guardrail",
                                 "blocked": "blocked",
                               })
 builder.add_edge("planner" , "executor")
-builder.add_edge("executor" ,"analysis")
+builder.add_edge("executor" , "rag")
+builder.add_edge("rag" , "analysis")
 builder.add_edge("analysis" , "verification")
 builder.add_edge("verification"  ,END)
 builder.add_edge("blocked" , END)
