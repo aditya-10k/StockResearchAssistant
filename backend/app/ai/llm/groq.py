@@ -20,9 +20,11 @@ class GroqLLM(BaseLLM):
         self.client = Groq(api_key=settings.GROQ_API_KEY)
 
     def generate(self, request: LLMRequest):
+        import json
         system_prompt = request.system_prompt
-        if request.response_model and "json" not in system_prompt.lower():
-            system_prompt += "\n\nYou MUST return your response as a valid JSON object."
+        if request.response_model:
+            schema_str = json.dumps(request.response_model.model_json_schema())
+            system_prompt += f"\n\nYou MUST return a valid JSON object strictly matching this JSON Schema:\n{schema_str}"
 
         request_options = {
             "model": settings.GROQ_MODEL,
