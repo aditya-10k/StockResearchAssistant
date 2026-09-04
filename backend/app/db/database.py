@@ -12,6 +12,8 @@ def init_engine():
     # 1. Try PostgreSQL if DATABASE_URL is configured
     pg_url = settings.DATABASE_URL or os.environ.get("DATABASE_URL")
     if pg_url and not pg_url.startswith("sqlite"):
+        if pg_url.startswith("postgres://"):
+            pg_url = pg_url.replace("postgres://", "postgresql://", 1)
         try:
             pg_engine = create_engine(
                 pg_url,
