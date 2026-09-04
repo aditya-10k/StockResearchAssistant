@@ -5,11 +5,15 @@ from app.core.config import settings
 from app.db.database import engine, Base
 from sqlalchemy import text
 
-# Create tables & seed RAG documents (graceful fallback if Postgres is starting/offline)
+# Create tables & seed RAG documents
 try:
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-        conn.commit()
+    if "postgresql" in engine.url.drivername:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+                conn.commit()
+        except Exception as ve:
+            print(f"Notice: pgvector extension creation skipped: {ve}")
     Base.metadata.create_all(bind=engine)
     
     # Auto-seed reference research documents if empty
@@ -18,7 +22,7 @@ try:
     with SessionLocal() as seed_db:
         RAGService(seed_db).seed_initial_documents()
 except Exception as e:
-    print(f"Warning: Database connection skipped or failed: {e}")
+    print(f"Warning: Database initialization skipped or failed: {e}")
 
 from fastapi.middleware.cors import CORSMiddleware
 
